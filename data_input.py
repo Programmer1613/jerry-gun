@@ -11,25 +11,12 @@
     :date created: 2019-07-22
 
 """
-import urllib3
 
 
-def download_data():
-    download_url = 'https://www.cs.toronto.edu/~kriz/cifar-100-python.tar.gz'
-    rsp = urllib3.PoolManager().request('GET', download_url)
-    with open('data/data.tar.gz', 'wb') as f:
-        f.write(rsp.data)
+def unpickle(file):
+    import pickle
+    with open(file, 'rb') as fo:
+        d = pickle.load(fo, encoding='bytes')
+    return d
 
 
-def read_data():
-    import os
-
-    if not os.path.exists('data/'):
-        os.makedirs('data/')
-
-    data_size = os.path.getsize('data/')
-    if data_size <= 4096:
-        download_data()
-
-
-read_data()
