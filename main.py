@@ -11,38 +11,51 @@
     :date created: 2019-07-22
 
 """
-from data_input import unpickle
-import matplotlib.pyplot as plt
 import tensorflow as tf
+
+from data_input import gray_input_iter
 
 
 def train():
 
-    with tf.compat.v1.variable_scope('cnn') as scope:
+    with tf.compat.v1.variable_scope('cnn'):
         image_input = tf.compat.v1.placeholder(
-            dtype=tf.float32, shape=(None, 32, 32, 3))
-        w1 = tf.compat.v1.get_variable(
+            dtype=tf.float32, shape=(None, 32, 32, 1))
+        image_input /= 255.0
+        conv1_w = tf.compat.v1.get_variable(
             name='conv1_w',
-            shape=[3, 3, 3, 32],
+            shape=[3, 3, 1, 32],
+            dtype=tf.float32,
+            initializer=tf.truncated_normal_initializer()
+        )
+        conv1_b = tf.compat.v1.get_variable(
+            name='conv1_b',
+            shape=[32],
             dtype=tf.float32,
             initializer=tf.truncated_normal_initializer()
         )
         conv1 = tf.nn.relu(tf.nn.conv2d(
             image_input,
-            w1,
+            conv1_w + conv1_b,
             [1, 2, 2, 1],
             padding='SAME'
         ))
 
-        w2 = tf.compat.v1.get_variable(
+        conv2_w = tf.compat.v1.get_variable(
             name='conv2_w',
             shape=[3, 3, 32, 64],
             dtype=tf.float32,
             initializer=tf.truncated_normal_initializer()
         )
+        conv2_b = tf.compat.v1.get_variable(
+            name='conv2_b',
+            shape=[64],
+            dtype=tf.float32,
+            initializer=tf.truncated_normal_initializer()
+        )
         conv2 = tf.nn.relu(tf.nn.conv2d(
             conv1,
-            w2,
+            conv2_w + conv2_b,
             [1, 2, 2, 1],
             padding='SAME'
         ))
@@ -76,13 +89,11 @@ def train():
         )
         fc_2 = tf.nn.relu(tf.matmul(fc_1, fc2_w) + fc2_b)
 
-    x = unpickle('data/data_batch_1')[b'data'][0]
-    x = [x.reshape(32, 32, 3)]
     sess = tf.InteractiveSession()
-    sess.run(tf.compat.v1.global_variables_initializer())
-    res = sess.run(fc_2, feed_dict={image_input: x})
-    print(res.shape)
-    print(res)
+    for x in gray_input_iter(50):
+        sess.run(tf.compat.v1.global_variables_initializer())
+        res = sess.run(fc_2, feed_dict={image_input: x})
+        break
 
 
 train()
