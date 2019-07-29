@@ -18,10 +18,10 @@ from data_input import gray_input_iter
 
 def train():
 
+    image_input = tf.compat.v1.placeholder(
+        dtype=tf.float32, shape=(None, 32, 32, 1))
+    image_input /= 255.0
     with tf.compat.v1.variable_scope('cnn'):
-        image_input = tf.compat.v1.placeholder(
-            dtype=tf.float32, shape=(None, 32, 32, 1))
-        image_input /= 255.0
         conv1_w = tf.compat.v1.get_variable(
             name='conv1_w',
             shape=[3, 3, 1, 32],
@@ -89,10 +89,88 @@ def train():
         )
         fc_2 = tf.nn.relu(tf.matmul(fc_1, fc2_w) + fc2_b)
 
+    with tf.compat.v1.variable_scope('generator'):
+        gen_conv_w = tf.compat.v1.get_variable(
+            name='gen_conv_w',
+            shape=[3, 3, 1, 3],
+            dtype=tf.float32,
+            initializer=tf.truncated_normal_initializer()
+        )
+        gen_conv_b = tf.compat.v1.get_variable(
+            name='gen_conv_b',
+            shape=[3],
+            dtype=tf.float32,
+            initializer=tf.truncated_normal_initializer()
+        )
+        gen_conv = tf.nn.relu(tf.nn.conv2d(
+            image_input,
+            gen_conv_w + gen_conv_b,
+            [1, 1, 1, 1],
+            padding='SAME'
+        ))
+
+        gen_r_conv_w = tf.compat.v1.get_variable(
+            name='gen_r_conv_w',
+            shape=[3, 3, 1, 1],
+            dtype=tf.float32,
+            initializer=tf.truncated_normal_initializer()
+        )
+        gen_r_conv_b = tf.compat.v1.get_variable(
+            name='gen_r_conv_b',
+            shape=[3],
+            dtype=tf.float32,
+            initializer=tf.truncated_normal_initializer()
+        )
+        gen_r_conv = tf.nn.relu(tf.nn.conv2d(
+            gen_conv,
+            gen_r_conv_w + gen_r_conv_b,
+            [1, 1, 1, 1],
+            padding='SAME'
+        ))
+
+        gen_g_conv_w = tf.compat.v1.get_variable(
+            name='gen_g_conv_w',
+            shape=[3, 3, 1, 1],
+            dtype=tf.float32,
+            initializer=tf.truncated_normal_initializer()
+        )
+        gen_g_conv_b = tf.compat.v1.get_variable(
+            name='gen_g_conv_b',
+            shape=[3],
+            dtype=tf.float32,
+            initializer=tf.truncated_normal_initializer()
+        )
+        gen_g_conv = tf.nn.relu(tf.nn.conv2d(
+            gen_conv,
+            gen_g_conv_w + gen_g_conv_b,
+            [1, 1, 1, 1],
+            padding='SAME'
+        ))
+
+        gen_b_conv_w = tf.compat.v1.get_variable(
+            name='gen_b_conv_w',
+            shape=[3, 3, 1, 1],
+            dtype=tf.float32,
+            initializer=tf.truncated_normal_initializer()
+        )
+        gen_b_conv_b = tf.compat.v1.get_variable(
+            name='gen_b_conv_b',
+            shape=[3],
+            dtype=tf.float32,
+            initializer=tf.truncated_normal_initializer()
+        )
+        gen_b_conv = tf.nn.relu(tf.nn.conv2d(
+            gen_conv,
+            gen_b_conv_w + gen_b_conv_b,
+            [1, 1, 1, 1],
+            padding='SAME'
+        ))
+
     sess = tf.InteractiveSession()
     for x in gray_input_iter(50):
         sess.run(tf.compat.v1.global_variables_initializer())
         res = sess.run(fc_2, feed_dict={image_input: x})
+        print(res.shape)
         break
 
 
