@@ -11,12 +11,15 @@
     :date created: 2019-07-22
 
 """
+from copy import deepcopy
+
+import cv2
 import scipy.io
 import numpy as np
 import tensorflow as tf
 
 
-def build_model(h, w):
+def build_model(w, h):
     net = dict()
 
     def conv_layer(_input, _w):
@@ -110,4 +113,55 @@ def get_style_loss(sess, input_image, model):
     return loss_sum
 
 
+def read_image(image_path, shape=None):
+    image = cv2.imread(image_path, cv2.IMREAD_COLOR)
+    assert image is not None
+    image = image.astype(np.float32)
+    if shape is not None:
+        image = cv2.resize(image, dsize=shape, interpolation=cv2.INTER_AREA)
+    image = image[..., :: -1]
+    image = image[None, :, :, :]
+    image -= np.array([123.68, 116.779, 103.939]).reshape((1, 1, 1, 3))
+    return image
 
+
+def write_image(image, path):
+    image = deepcopy(image)
+    image += np.array([123.68, 116.779, 103.939]).reshape((1, 1, 1, 3))
+    image = image[0]
+    image = np.clip(image, 0, 255).astype('uint8')
+    image = image[..., ::-1]
+    cv2.imwrite(path, image)
+
+
+def get_optimizer(loss_func):
+    return tf.contrib.opt.ScipyOptimizeInterface(
+        loss_func, method='L-BFGS-B')
+
+
+def stylize_image(content_image_path, style_image_path):
+    content_image = read_image(content_image_path)
+    _, w, h, _ = content_image.shape
+    style_image = read_image(style_image_path, (w, h))
+
+    with tf.Session() as sess:
+        # init
+        model = build_model(w, h)
+        content_loss = get_content_loss(sess, model, content_image)
+        style_loss = get_style_loss(sess, model, style_image)
+
+        loss_func = 0.5 * content_loss + 0.5 * style_loss
+        optimizer = get_optimizer(loss_func)
+
+        # train
+        train_step = optimizer.minimize(loss_func)
+        sess.run(tf.global_variables_initializer())
+        sess.run(model['input'].assign(content_image))
+        for i in range(10000):
+            sess.run(train_step)
+            if i % 100 == 0:
+                print(loss_func.eval())
+
+        # output
+        output_image = sess.run(model['input'])
+        write_image(output_image, 'output' + content_image)
