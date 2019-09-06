@@ -155,7 +155,7 @@ def stylize_image(content_image_path, style_image_path):
             # train
             sess.run(tf.global_variables_initializer())
             sess.run(model['input'].assign(content_image))
-            optimizer.minimize(loss_func)
+            optimizer.minimize(sess)
 
             # output
             output_image = sess.run(model['input'])
