@@ -19,7 +19,7 @@ import numpy as np
 import tensorflow as tf
 
 
-def build_model(w, h):
+def build_model(h, w):
     net = dict()
 
     def conv_layer(_input, _w):
@@ -134,18 +134,18 @@ def write_image(image, path):
 
 def get_optimizer(loss_func):
     return tf.contrib.opt.ScipyOptimizerInterface(
-        loss_func, method='L-BFGS-B')
+        loss_func, method='L-BFGS-B', options={'maxiter': 1, 'disp': 50})
 
 
 def stylize_image(content_image_path, style_image_path):
     content_image = read_image(content_image_path)
-    _, w, h, _ = content_image.shape
+    _, h, w, _ = content_image.shape
     style_image = read_image(style_image_path, (w, h))
 
     with tf.Graph().as_default():
-        with tf.Session() as sess:
+        with tf.device('/gpu:0'), tf.Session() as sess:
             # init
-            model = build_model(w, h)
+            model = build_model(h, w)
             content_loss = get_content_loss(sess, content_image, model)
             style_loss = get_style_loss(sess, style_image, model)
 
@@ -162,5 +162,5 @@ def stylize_image(content_image_path, style_image_path):
             write_image(output_image, 'output' + content_image)
 
 
-stylize_image('zio.png', 'face.jpg')
+stylize_image('zio.jpg', 'scream.jpg')
 
