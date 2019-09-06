@@ -65,51 +65,49 @@ def build_model(w, h):
 
 def get_content_loss(sess, input_image, model):
     loss_sum = 0.
-    model['input'].assign(input_image)
+    sess.run(model['input'].assign(input_image))
 
     def _get_loss(_layer_name):
         _a = sess.run(model[_layer_name])
         _x = model[_layer_name]
+        _a = tf.convert_to_tensor(_a)
 
         _, _h, _w, _d = _a.get_shape()
-        _loss = tf.reduce_sum(tf.pow(_a - _x), 2)
-        _loss *= 0.5 * (_h*_w) ** 0.5
+        _loss = tf.reduce_sum(tf.pow(_a - _x, 2))
+        _loss *= 0.5 * (_h.value*_w.value) ** 0.5
         return _loss
 
-    loss_sum += 0.2 * _get_loss('conv-1-1')
-    loss_sum += 0.2 * _get_loss('conv-2-1')
-    loss_sum += 0.2 * _get_loss('conv-3-1')
-    loss_sum += 0.2 * _get_loss('conv-4-1')
-    loss_sum += 0.2 * _get_loss('conv-5-1')
+    loss_sum += 0.2 * _get_loss('conv-4-2')
     return loss_sum
 
 
 def gram_matrix(mat):
     _, h, w, d = mat.get_shape()
-    f = tf.reshape(mat, (h*w, d))
+    f = tf.reshape(mat, (h.value*w.value, d.value))
     return tf.matmul(tf.transpose(f), f)
 
 
 def get_style_loss(sess, input_image, model):
     loss_sum = 0.
-    model['input'].assign(input_image)
+    sess.run(model['input'].assign(input_image))
 
     def _get_loss(_layer_name):
         _a = sess.run(model[_layer_name])
         _x = model[_layer_name]
+        _a = tf.convert_to_tensor(_a)
 
         _a = gram_matrix(_a)
         _x = gram_matrix(_x)
-        _, _h, _w, _d = _a.get_shape()
-        _loss = tf.reduce_sum(tf.pow(_a - _x), 2)
-        _loss *= 0.5 * (_h*_w) ** 0.5
+        _h, _w = _a.get_shape()
+        _loss = tf.reduce_sum(tf.pow(_a - _x, 2))
+        _loss *= 0.5 * (_h.value*_w.value) ** 0.5
         return _loss
 
-    loss_sum += 0.2 * _get_loss('conv-1-1')
-    loss_sum += 0.2 * _get_loss('conv-2-1')
-    loss_sum += 0.2 * _get_loss('conv-3-1')
-    loss_sum += 0.2 * _get_loss('conv-4-1')
-    loss_sum += 0.2 * _get_loss('conv-5-1')
+    loss_sum += 0.2 * _get_loss('relu-0-0')
+    loss_sum += 0.2 * _get_loss('relu-1-0')
+    loss_sum += 0.2 * _get_loss('relu-2-0')
+    loss_sum += 0.2 * _get_loss('relu-3-0')
+    loss_sum += 0.2 * _get_loss('relu-4-0')
     return loss_sum
 
 
@@ -135,7 +133,7 @@ def write_image(image, path):
 
 
 def get_optimizer(loss_func):
-    return tf.contrib.opt.ScipyOptimizeInterface(
+    return tf.contrib.opt.ScipyOptimizerInterface(
         loss_func, method='L-BFGS-B')
 
 
@@ -144,24 +142,25 @@ def stylize_image(content_image_path, style_image_path):
     _, w, h, _ = content_image.shape
     style_image = read_image(style_image_path, (w, h))
 
-    with tf.Session() as sess:
-        # init
-        model = build_model(w, h)
-        content_loss = get_content_loss(sess, model, content_image)
-        style_loss = get_style_loss(sess, model, style_image)
+    with tf.Graph().as_default():
+        with tf.Session() as sess:
+            # init
+            model = build_model(w, h)
+            content_loss = get_content_loss(sess, content_image, model)
+            style_loss = get_style_loss(sess, style_image, model)
 
-        loss_func = 0.5 * content_loss + 0.5 * style_loss
-        optimizer = get_optimizer(loss_func)
+            loss_func = 0.5 * content_loss + 0.5 * style_loss
+            optimizer = get_optimizer(loss_func)
 
-        # train
-        train_step = optimizer.minimize(loss_func)
-        sess.run(tf.global_variables_initializer())
-        sess.run(model['input'].assign(content_image))
-        for i in range(10000):
-            sess.run(train_step)
-            if i % 100 == 0:
-                print(loss_func.eval())
+            # train
+            sess.run(tf.global_variables_initializer())
+            sess.run(model['input'].assign(content_image))
+            optimizer.minimize(loss_func)
 
-        # output
-        output_image = sess.run(model['input'])
-        write_image(output_image, 'output' + content_image)
+            # output
+            output_image = sess.run(model['input'])
+            write_image(output_image, 'output' + content_image)
+
+
+stylize_image('zio.png', 'face.jpg')
+
