@@ -134,7 +134,7 @@ def write_image(image, path):
 
 def get_optimizer(loss_func):
     return tf.contrib.opt.ScipyOptimizerInterface(
-        loss_func, method='L-BFGS-B', options={'maxiter': 1, 'disp': 50})
+        loss_func, method='L-BFGS-B', options={'maxiter': 100000, 'disp': 50})
 
 
 def stylize_image(content_image_path, style_image_path):
@@ -153,13 +153,13 @@ def stylize_image(content_image_path, style_image_path):
             optimizer = get_optimizer(loss_func)
 
             # train
-            sess.run(tf.global_variables_initializer())
+            sess.run(tf.compat.v1.global_variables_initializer())
             sess.run(model['input'].assign(content_image))
             optimizer.minimize(sess)
 
             # output
             output_image = sess.run(model['input'])
-            write_image(output_image, 'output' + content_image)
+            write_image(output_image, 'output' + content_image_path)
 
 
 stylize_image('zio.jpg', 'scream.jpg')
